@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
+using Json.Schema;
 
 namespace RunPowerShellCSharp;
 
@@ -29,7 +30,7 @@ internal class PowerShellExecutor {
 
     public async Task ExecuteScriptAsync(Dictionary<string, object> parameters) {
         // We will use the preferred method if it is set, otherwise we will use the default method
-        var method = PowerShellMethod.NamedPipe;
+        var method = PowerShellMethod.InProcess;
 
         switch (method) {
             case PowerShellMethod.InProcess:
@@ -115,6 +116,13 @@ internal class PowerShellExecutor {
             PSDataCollection<PSObject> results = new PSDataCollection<PSObject>();
             await InvokePowerShellAsync(ps, results);
 
+            //PSDataCollection<PSObject> inCollection = new PSDataCollection<PSObject>();
+            //inCollection.Complete();
+
+            //ps.Invoke(inCollection, results, new PSInvocationSettings());
+
+            results.Complete();
+
             foreach (var information in ps.Streams.Information) {
                 Console.WriteLine(information.MessageData.ToString());
             }
@@ -150,7 +158,7 @@ internal class PowerShellExecutor {
         ps.Streams.ClearStreams();
 
         // Convert the ScriptBlock to a string
-        string whereObjectString = whereObject.ToString();
+        //string whereObjectString = whereObject.ToString();
 
         // Add the script to filter results
         //ps.AddScript("$Results | Where-Object {" + whereObjectString + "}");
@@ -162,18 +170,33 @@ internal class PowerShellExecutor {
         //ps.AddCommand("Where-Object").AddArgument(whereObject);
 
 
-        ps.AddScript("$args[0] | Where-Object {" + whereObjectString + "}", true).AddArgument(results);
+        //ps.AddScript("$args[0] | Where-Object {" + whereObjectString + "}", true); //.AddArgument(results);
         //ps.AddScript("param($testing) $testing | Where-Object {" + whereObjectString + "}", useLocalScope: true);
         //ps.AddParameter("testing", results);
         //ps.AddScript("Write-Host $Results.Count");
         //ps.AddParameter("Results", results);
 
-        var evaluationResult1 = ps.Invoke();
+        //ps.AddScript("$input | Where-Object {arg[0]}").AddArgument("{ $_.Number -eq 1 }");
+        // ps.AddScript("$input | Where-Object ([ScriptBlock]::Create($args[0]))").AddArgument("$_.Number -eq 1");
 
-        Console.WriteLine("Evaluation Count: " + evaluationResult1.Count);
+
+
+        Console.WriteLine("filter: " + whereObject);
+        ps.AddScript("$input | Where-Object ([ScriptBlock]::Create($args[0]))").AddArgument(whereObject);
+
+
+        //var evaluationResult1 = ps.Invoke(results);
+
+        //Console.WriteLine("Filtering Evaluation Count: " + evaluationResult1.Count);
+
+
+
+        ps.Invoke(results, evaluationResult, new PSInvocationSettings());
 
         // Invoke the script asynchronously
         //ps.InvokePowerShellAsyncWithInput(results, evaluationResult);
+
+        evaluationResult.Complete();
 
         foreach (var information in ps.Streams.Information) {
             Console.WriteLine("Information: " + information.MessageData.ToString());
