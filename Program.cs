@@ -29,8 +29,10 @@ internal static class Program {
 internal class PowerShellExecutor {
 
     public async Task ExecuteScriptAsync(Dictionary<string, object> parameters) {
+        Environment.SetEnvironmentVariable("ADPS_LoadDefaultDrive", "0");
+
         // We will use the preferred method if it is set, otherwise we will use the default method
-        var method = PowerShellMethod.InProcess;
+        var method = PowerShellMethod.OutOfProcess;
 
         switch (method) {
             case PowerShellMethod.InProcess:
@@ -99,14 +101,13 @@ internal class PowerShellExecutor {
 
     private async Task ExecuteCommonScriptAsync(PowerShell ps, Dictionary<string, object> parameters) {
         var psParameters = parameters;
-        Environment.SetEnvironmentVariable("ADPS_LoadDefaultDrive", "0");
 
         try {
 
-            string[] specialModules = { "ActiveDirectory", "ADEssentials" };
-            foreach (var module in specialModules) {
-                ps.AddStatement().AddCommand("Import-Module").AddParameter("Name", module);
-            }
+            //string[] specialModules = { "ActiveDirectory", "ADEssentials" };
+            //foreach (var module in specialModules) {
+            //    ps.AddStatement().AddCommand("Import-Module").AddParameter("Name", module);
+            //}
 
             ScriptBlock scriptBlock = AddParametersToScriptBlock(ScriptBlock.Create("get-disk"), parameters);
 
