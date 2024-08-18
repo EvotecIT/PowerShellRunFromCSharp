@@ -173,7 +173,7 @@ internal class PowerShellExecutor {
         Console.WriteLine("Evaluation Count: " + evaluationResult1.Count);
 
         // Invoke the script asynchronously
-        ps.InvokePowerShellAsyncWithInput(results, evaluationResult);
+        //ps.InvokePowerShellAsyncWithInput(results, evaluationResult);
 
         foreach (var information in ps.Streams.Information) {
             Console.WriteLine("Information: " + information.MessageData.ToString());
