@@ -7,7 +7,6 @@ using System.Management.Automation;
 
 namespace RunPowerShellCSharp;
 
-
 internal class PowerShellExecuteBig {
 
     public async Task ExecuteScriptAsync(Dictionary<string, object> parameters) {
@@ -79,24 +78,26 @@ internal class PowerShellExecuteBig {
         }
     }
     private async Task ExecuteCommonScriptAsync(PowerShell ps, Dictionary<string, object> parameters) {
+        Console.WriteLine("[i] Executing common script Async");
         var psParameters = parameters;
         PSDataCollection<PSObject> results = new PSDataCollection<PSObject>();
         try {
 
-            string[] specialModules = { "Microsoft.PowerShell.Security" };
+            string[] specialModules = { "ActiveDirectory", "Microsoft.PowerShell.Security" };
             foreach (var module in specialModules) {
-                //ps.AddStatement().AddCommand("Import-Module").AddParameter("Name", module);
+                //ps.AddCommand("Import-Module").AddParameter("Name", module).AddStatement();
             }
+            ScriptBlock scriptBlock = AddParametersToScriptBlock(ScriptBlock.Create("get-disk"), parameters);
+            await ps.AddScript(scriptBlock.ToString()).AddParameters(psParameters).InvokePowerShellAsync(results);
 
-            //ScriptBlock scriptBlock = AddParametersToScriptBlock(ScriptBlock.Create("get-disk"), parameters);
+            //await ps
+            //    .AddCommand("Import-Module")
+            //    .AddArgument(new string[] { "ActiveDirectory", "Microsoft.PowerShell.Security" })
+            //    .AddStatement()
+            //    .AddCommand("Get-Disk")
+            //    .InvokePowerShellAsync(results);
 
-            //await ps.AddScript(scriptBlock.ToString()).AddParameters(psParameters).InvokePowerShellAsync(results);
-
-            //await ps.AddStatement().AddCommand("Import-Module").AddParameter("Name", "ActiveDirectory").AddCommand("Get-Disk").InvokePowerShellAsync(results);
-
-            await ps.AddCommand("Get-Disk").InvokePowerShellAsync(results);
-
-            results.Complete();
+            //await ps.AddCommand("Get-Disk").InvokePowerShellAsync(results);
 
             foreach (var information in ps.Streams.Information) {
                 Console.WriteLine(information.MessageData.ToString());
@@ -111,10 +112,33 @@ internal class PowerShellExecuteBig {
             }
 
             Console.WriteLine("Results count: " + results.Count);
+            results.Complete();
+            foreach (var result in results) {
+                var friendlyName = result.Properties["FriendlyName"]?.Value;
+                var serialNumber = result.Properties["SerialNumber"]?.Value;
+                var totalSize = result.Properties["Total Size"]?.Value;
+                Console.WriteLine($"> Friendly Name: {friendlyName}, Serial Number: {serialNumber}, Total Size: {totalSize}");
+            }
+
             if (results.Count > 0) {
                 var WhereObject = ScriptBlock.Create("$_.Number -eq 1");
 
                 var test = await FilterResultsInSession(ps, results, WhereObject);
+                foreach (var item in test) {
+                    var friendlyName = item.Properties["FriendlyName"]?.Value;
+                    var serialNumber = item.Properties["SerialNumber"]?.Value;
+                    var totalSize = item.Properties["Total Size"]?.Value;
+                    Console.WriteLine($"> Friendly Name: {friendlyName}, Serial Number: {serialNumber}, Total Size: {totalSize}");
+                }
+
+                var WhereObject1 = ScriptBlock.Create("$_.Number -eq 2");
+                var test1 = await FilterResultsInSession(ps, results, WhereObject1);
+                foreach (var item in test1) {
+                    var friendlyName = item.Properties["FriendlyName"]?.Value;
+                    var serialNumber = item.Properties["SerialNumber"]?.Value;
+                    var totalSize = item.Properties["Total Size"]?.Value;
+                    Console.WriteLine($"> Friendly Name: {friendlyName}, Serial Number: {serialNumber}, Total Size: {totalSize}");
+                }
             }
         } catch (RuntimeException rex) {
             Console.WriteLine($"Exception in ExecuteCommonScriptAsync for rule: {rex.Message}");
@@ -126,19 +150,20 @@ internal class PowerShellExecuteBig {
     }
 
     private async Task<PSDataCollection<PSObject>> FilterResultsInSession(PowerShell ps, PSDataCollection<PSObject> results, ScriptBlock whereObject) {
+        Console.WriteLine("[i] Applying filter to results");
         PSDataCollection<PSObject> evaluationResult = new PSDataCollection<PSObject>();
         ps.Commands.Clear();
         // Clear previous streams
         ps.Streams.ClearStreams();
 
         Console.WriteLine("Filter used: " + whereObject);
-        ps.AddScript("$input | Where-Object ([ScriptBlock]::Create($args[0]))").AddArgument(whereObject);
+        //ps.AddScript("$input | Where-Object ([ScriptBlock]::Create($args[0]))").AddArgument(whereObject);
 
         await ps.AddScript("$input | Where-Object ([ScriptBlock]::Create($args[0]))")
             .AddArgument(whereObject)
             .InvokePowerShellAsyncWithInput(results, evaluationResult);
 
-        evaluationResult.Complete();
+        //await ps.InvokePowerShellAsyncWithInput(results, evaluationResult);
 
         foreach (var information in ps.Streams.Information) {
             Console.WriteLine("Information: " + information.MessageData.ToString());
@@ -153,8 +178,10 @@ internal class PowerShellExecuteBig {
             throw new Exception($"Evaluating WhereObject failed with message: {message}");
         }
 
-        Console.WriteLine("ResultsCount: " + results.Count);
+        Console.WriteLine("ResultsCount (still available): " + results.Count);
         Console.WriteLine("EvaluationResultCount: " + evaluationResult.Count);
+
+        evaluationResult.Complete();
 
         return evaluationResult;
     }
