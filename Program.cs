@@ -16,8 +16,7 @@ internal static class Program {
     /// </summary>
     /// <returns></returns>
     private static async Task ExampleBig() {
-        var parameters = new Dictionary<string, object>
-        {
+        var parameters = new Dictionary<string, object> {
             { "Number", 1 }
         };
         var executor = new PowerShellExecuteBig();
